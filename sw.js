@@ -1,7 +1,8 @@
-// Simple service worker: app files load from cache when offline,
+// Service worker: app files load from cache when offline,
 // but data (Supabase) always comes live from the network.
-const CACHE = "unimarket-v2";
-const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.json",
+const CACHE = "unimarket-v3";
+const OFFLINE_URL = "offline.html";
+const SHELL = ["./", "index.html", OFFLINE_URL, "style.css", "app.js", "config.js", "manifest.json",
   "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -26,10 +27,21 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
         return res;
       })
-      .catch(() => caches.match(req).then((r) => r || caches.match("index.html")))
+      .catch(async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        // Page navigations: show the app shell, then the offline page.
+        if (req.mode === "navigate") {
+          return (await caches.match("index.html")) || (await caches.match(OFFLINE_URL));
+        }
+        // Missing CSS/JS/images: just fail instead of returning an HTML page.
+        return Response.error();
+      })
   );
 });
