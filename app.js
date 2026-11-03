@@ -17,7 +17,7 @@
   let user = null;
   let mineOnly = false;
   let kind = "sell"; // "sell" = items for sale, "want" = "I want" requests
-  try { kind = localStorage.getItem("kind") === "want" ? "want" : "sell"; } catch {}
+  try { const k = localStorage.getItem("kind"); kind = k === "want" || k === "swap" ? k : "sell"; } catch {}
   let authMode = "login";
   let listings = [];
   let isAdmin = false;
@@ -29,7 +29,10 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const money = (n) => `${CONFIG.CURRENCY}${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-  const priceText = (l) => (l.kind === "want" ? (Number(l.price) > 0 ? "Budget " + money(l.price) : "Wanted") : money(l.price));
+  const priceText = (l) => l.kind === "want" ? (Number(l.price) > 0 ? "Budget " + money(l.price) : "Wanted")
+    : l.kind === "swap" ? (Number(l.price) > 0 ? "Swap · worth " + money(l.price) : "Swap")
+    : money(l.price);
+  const vBadge = (p) => (p?.verified ? ' <span class="vbadge" title="Verified seller">✔ Verified</span>' : "");
   const safeImg = (u) => (typeof u === "string" && u.startsWith("https://") ? u : null);
 
   let toastTimer;
@@ -54,6 +57,8 @@
   // ---------- auth ----------
   function renderAuthUI() {
     $("btnAuth").textContent = user ? "Log out" : "Log in";
+    $("menuWrap").classList.toggle("hidden", !user);
+    if (!user) $("menuList").classList.add("hidden");
     for (const id of ["btnMine", "btnOrders", "btnProfile"]) $(id).classList.toggle("hidden", !user);
     $("btnAdmin").classList.toggle("hidden", !isAdmin);
     $("btnSignup").classList.toggle("hidden", !!user);
@@ -152,6 +157,7 @@
     const school = $("fSchool").value;
     if (school && !mineOnly) q = q.eq("school", school);
     if (cat) q = q.eq("category", cat);
+    if (sellerFilter && !mineOnly) q = q.eq("seller_id", sellerFilter);
     if (term) q = q.ilike("title", `%${term}%`);
     if (sort === "low") q = q.order("price", { ascending: true });
     else if (sort === "high") q = q.order("price", { ascending: false });
@@ -168,12 +174,16 @@
   }
 
   function renderGrid() {
-    $("listTitle").textContent = mineOnly ? "My listings" : kind === "want" ? "What students want" : "Latest listings";
+    syncHome();
+    const sName = sellerFilter && (profiles[sellerFilter]?.business_name || profiles[sellerFilter]?.user_name);
+    $("listTitle").textContent = mineOnly ? "My listings" : kind === "want" ? "What students want" : kind === "swap" ? "Items open to swap" : sName ? `Items from ${sName}` : "All listings";
     $("btnMine").textContent = mineOnly ? "All listings" : "My listings";
     $("empty").classList.toggle("hidden", listings.length > 0);
     $("empty").textContent = mineOnly
       ? "You haven't posted anything yet."
-      : kind === "want" ? "No requests yet. Post what you want!" : "Nothing here yet. Be the first to post an item!";
+      : kind === "want" ? "No requests yet. Post what you want!"
+      : kind === "swap" ? "No swap offers yet. Post something you'd like to swap!"
+      : "Nothing here yet. Be the first to post an item!";
 
     $("grid").innerHTML = listings.map((l) => {
       const img = safeImg(l.image_url);
@@ -181,13 +191,13 @@
         <button class="card" type="button" data-id="${esc(l.id)}">
           <div class="thumb">
             ${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : esc(ICONS[l.category] || "📦")}
-            ${l.kind === "want" ? '<span class="badge want">I WANT</span>' : l.status !== "available" ? `<span class="badge">${esc(l.status.toUpperCase())}</span>` : ""}
+            ${l.kind === "want" ? '<span class="badge want">I WANT</span>' : l.kind === "swap" ? '<span class="badge swap">SWAP</span>' : l.status !== "available" ? `<span class="badge">${esc(l.status.toUpperCase())}</span>` : ""}
           </div>
           <div class="card-body">
             <div class="price">${esc(priceText(l))}</div>
             <div class="card-title">${esc(l.title)}</div>
             <div class="meta">${esc(l.condition)} · ${esc(l.category)}</div>
-            <div class="seller-mini">${avatarHTML(profiles[l.seller_id] || { user_name: l.seller_name }, "av sm")}<span>${esc(profiles[l.seller_id]?.user_name || l.seller_name)}</span></div>
+            <div class="seller-mini">${avatarHTML(profiles[l.seller_id] || { user_name: l.seller_name }, "av sm")}<span>${esc(profiles[l.seller_id]?.user_name || l.seller_name)}${profiles[l.seller_id]?.verified ? " ✔" : ""}</span></div>
           </div>
         </button>`;
     }).join("");
@@ -212,7 +222,7 @@
         <div class="close-row"><button class="x" type="button" data-close aria-label="Close">&times;</button></div>
       </div>
       <div class="content">
-        <div class="price">${esc(priceText(l))}${l.status === "sold" ? (l.kind === "want" ? " · FOUND" : " · SOLD") : ""}</div>
+        <div class="price">${esc(priceText(l))}${l.status === "sold" ? (l.kind === "want" ? " · FOUND" : l.kind === "swap" ? " · SWAPPED" : " · SOLD") : ""}</div>
         <h3>${esc(l.title)}</h3>
         <div class="chips">
           <span class="chip">${esc(l.category)}</span>
@@ -238,7 +248,7 @@
     if (!user) {
       actions.innerHTML = '<button class="btn primary" type="button" id="dLogin">Log in to see seller contact</button>';
       $("dLogin").addEventListener("click", () => { $("detailDialog").close(); openAuth("login"); });
-    } else if (l.kind !== "want" && !mine) {
+    } else if (l.kind === "sell" && !mine) {
       // Seller contact is only released after the buyer's payment is secured (enforced in the database too).
       const note = document.createElement("div");
       note.className = "muted center";
@@ -261,13 +271,15 @@
       if (digits.length >= 9) {
         const msg = encodeURIComponent(l.kind === "want"
           ? `Hi, I saw your request for "${l.title}" on Campus Market. I have one for you.`
+          : l.kind === "swap"
+          ? `Hi, I saw your swap offer "${l.title}" on Campus Market. I'd like to swap with you.`
           : `Hi, I saw "${l.title}" on Campus Market. Is it still available?`);
         const a = document.createElement("a");
         a.className = "btn primary";
         a.target = "_blank";
         a.rel = "noopener noreferrer";
         a.href = `https://wa.me/${digits}?text=${msg}`;
-        a.textContent = l.kind === "want" ? "I have this · WhatsApp" : "Chat on WhatsApp";
+        a.textContent = l.kind === "want" ? "I have this · WhatsApp" : l.kind === "swap" ? "Offer a swap · WhatsApp" : "Chat on WhatsApp";
         actions.appendChild(a);
       }
       const p = document.createElement("div");
@@ -279,7 +291,7 @@
     if (mine) {
       if (l.status === "available") {
         const b = document.createElement("button");
-        b.className = "btn"; b.type = "button"; b.textContent = l.kind === "want" ? "Mark as found" : "Mark as sold";
+        b.className = "btn"; b.type = "button"; b.textContent = l.kind === "want" ? "Mark as found" : l.kind === "swap" ? "Mark as swapped" : "Mark as sold";
         b.addEventListener("click", () => markSold(l));
         actions.appendChild(b);
       }
@@ -294,7 +306,7 @@
       actions.appendChild(r);
     }
 
-    if (user && !mine && l.status === "available" && l.kind !== "want") {
+    if (user && !mine && l.status === "available" && l.kind === "sell") {
       const b = document.createElement("button");
       b.className = "btn primary"; b.type = "button";
       b.textContent = `Buy securely · ${money(l.price)}`;
@@ -333,11 +345,12 @@
   const DRAFT_KEY = "postDraft";
   const DRAFT_IDS = ["pKind", "pTitle", "pCategory", "pCondition", "pPrice", "pDesc", "pContact"];
   function applyKind() {
-    const want = $("pKind").value === "want";
-    $("postTitle").textContent = want ? "I want an item" : "Sell an item";
-    $("pPriceLabel").textContent = want ? "Budget (optional, 0 = any price)" : "Price";
-    $("pPrice").required = !want;
-    $("postSubmit").textContent = want ? "Post request" : "Post listing";
+    const k = $("pKind").value;
+    $("postTitle").textContent = k === "want" ? "I want an item" : k === "swap" ? "Swap an item" : "Sell an item";
+    $("pPriceLabel").textContent = k === "want" ? "Budget (optional, 0 = any price)"
+      : k === "swap" ? "Approximate value (optional)" : "Price";
+    $("pPrice").required = k === "sell";
+    $("postSubmit").textContent = k === "want" ? "Post request" : k === "swap" ? "Post swap offer" : "Post listing";
   }
   function saveDraft() {
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(Object.fromEntries(DRAFT_IDS.map((i) => [i, $(i).value])))); } catch {}
@@ -358,6 +371,7 @@
     const k = e.target.dataset.kind;
     if (!k) return;
     kind = k;
+    sellerFilter = null;
     try { localStorage.setItem("kind", k); } catch {}
     mineOnly = false;
     syncTabs();
@@ -401,7 +415,7 @@
         title: $("pTitle").value.trim(),
         description: $("pDesc").value.trim() || null,
         price: Number($("pPrice").value) || 0,
-        kind: $("pKind").value === "want" ? "want" : "sell",
+        kind: ["want", "swap"].includes($("pKind").value) ? $("pKind").value : "sell",
         category: $("pCategory").value,
         condition: $("pCondition").value,
         seller_name: (user.user_metadata?.full_name || "Student").slice(0, 60),
@@ -451,6 +465,7 @@
   $("fSchool").addEventListener("change", () => {
     try { localStorage.setItem("school", $("fSchool").value); } catch {}
     loadListings();
+    loadHome();
   });
 
   // Show the student's own campus by default (they can switch to "All campuses").
@@ -575,8 +590,9 @@
         <div class="ctext">${esc(c.body)}</div></div></div>`;
     }).join("") : '<div class="muted">No comments yet. Ask the seller a question!</div>';
     const sp = profiles[l.seller_id];
-    if (sp) $("sellerLine").innerHTML = `<span class="seller-mini">${avatarHTML(sp)}<span>Seller: <b>${esc(sp.user_name)}</b></span></span>` +
-      `${sp.business_name ? " · " + esc(sp.business_name) : ""}${sp.location ? " · 📍" + esc(sp.location) : ""}`;
+    if (sp) $("sellerLine").innerHTML = `<span class="seller-mini">${avatarHTML(sp)}<span>Seller: <b>${esc(sp.user_name)}</b>${vBadge(sp)}</span></span>` +
+      `${sp.business_name ? " · " + esc(sp.business_name) : ""}${sp.location ? " · 📍" + esc(sp.location) : ""}` +
+      ` · <button class="linkbtn" type="button" data-seller="${esc(l.seller_id)}">View profile</button>`;
   }
 
   function wireComments(l) {
@@ -767,6 +783,110 @@
     } catch {}
   }
 
+  // ---------- home feed: categories, new arrivals, top sellers ----------
+  let sellerFilter = null;
+  let homeItems = [];
+  const cardHTML = (l) => {
+    const img = safeImg(l.image_url);
+    return `<button class="card" type="button" data-id="${esc(l.id)}">
+      <div class="thumb">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : esc(ICONS[l.category] || "📦")}</div>
+      <div class="card-body">
+        <div class="price">${esc(priceText(l))}</div>
+        <div class="card-title">${esc(l.title)}</div>
+        <div class="meta">${esc(l.condition)} · ${esc(l.category)}</div>
+        <div class="seller-mini">${avatarHTML(profiles[l.seller_id] || { user_name: l.seller_name }, "av sm")}<span>${esc(profiles[l.seller_id]?.user_name || l.seller_name)}${profiles[l.seller_id]?.verified ? " ✔" : ""}</span></div>
+      </div></button>`;
+  };
+
+  async function loadHome() {
+    let q = db.from("listings").select("*").eq("status", "available").eq("kind", "sell")
+      .order("created_at", { ascending: false }).limit(100);
+    const school = $("fSchool").value;
+    if (school) q = q.eq("school", school);
+    const { data } = await q;
+    homeItems = data || [];
+    await loadProfiles(homeItems.map((l) => l.seller_id));
+
+    // Categories: only show ones that have items
+    const counts = {};
+    homeItems.forEach((l) => (counts[l.category] = (counts[l.category] || 0) + 1));
+    $("catChips").innerHTML = CATEGORIES.filter((c) => counts[c]).map((c) =>
+      `<button class="chipbtn" type="button" data-cat="${esc(c)}">${esc(ICONS[c] || "📦")} ${esc(c)} <span class="muted">${counts[c]}</span></button>`).join("")
+      || '<span class="muted">No categories yet.</span>';
+
+    $("rowNew").innerHTML = homeItems.slice(0, 10).map(cardHTML).join("") || '<p class="muted">Nothing here yet.</p>';
+
+    // Sellers ranked by number of items
+    const by = {};
+    homeItems.forEach((l) => (by[l.seller_id] = (by[l.seller_id] || 0) + 1));
+    const ids = Object.keys(by).sort((a, b) => by[b] - by[a]);
+    const sellerCard = (id) => {
+      const p = profiles[id] || { user_name: homeItems.find((l) => l.seller_id === id)?.seller_name };
+      return `<button class="scard" type="button" data-seller="${esc(id)}">${avatarHTML(p, "av big")}
+        <b>${esc(p.business_name || p.user_name || "Student")}</b>${vBadge(p)}
+        <span class="muted">${esc(p.school || "")}</span>
+        <span class="muted">Items: ${by[id]}</span></button>`;
+    };
+    $("rowSellers").innerHTML = ids.slice(0, 8).map(sellerCard).join("") || '<p class="muted">No sellers yet.</p>';
+    $("sellersGrid").innerHTML = ids.map(sellerCard).join("");
+    syncHome();
+  }
+
+  // Show the feed only on the plain "for sale" view; hide it when searching or filtering.
+  function syncHome() {
+    const filtering = $("fSearch").value.trim() || $("fCategory").value || mineOnly || kind !== "sell";
+    $("home").classList.toggle("hidden", !!filtering);
+  }
+
+  // Seller profile page (dialog): who they are + everything they have available
+  let sellerItems = [];
+  async function openSeller(id) {
+    for (const d of ["detailDialog", "sellersDialog"]) if ($(d).open) $(d).close();
+    await loadProfiles([id]);
+    const { data } = await db.from("listings").select("*").eq("seller_id", id).eq("status", "available")
+      .order("created_at", { ascending: false }).limit(60);
+    sellerItems = data || [];
+    await loadProfiles([id]);
+    const p = profiles[id] || { user_name: sellerItems[0]?.seller_name };
+    $("sellerHead").innerHTML = `${avatarHTML(p, "av big")}<div>
+      <h3 style="margin:0">${esc(p.business_name || p.user_name || "Student")}${vBadge(p)}</h3>
+      ${p.business_name && p.user_name ? `<div class="muted">${esc(p.user_name)}</div>` : ""}
+      <div class="muted">${esc(p.school || "")}${p.location ? " · 📍" + esc(p.location) : ""}</div>
+      <div class="muted">${sellerItems.length} item${sellerItems.length === 1 ? "" : "s"} available</div></div>`;
+    $("sellerItems").innerHTML = sellerItems.map(cardHTML).join("") || '<p class="muted">No items available right now.</p>';
+    $("sellerDialog").showModal();
+  }
+  $("sellerItems").addEventListener("click", (e) => {
+    const c = e.target.closest(".card");
+    const l = c && sellerItems.find((x) => x.id === c.dataset.id);
+    if (!l) return;
+    $("sellerDialog").close();
+    openDetail(l);
+  });
+
+  // Account menu (My listings / Orders / Profile / Admin)
+  function setMenu(open) {
+    $("menuList").classList.toggle("hidden", !open);
+    $("btnMenu").setAttribute("aria-expanded", String(open));
+  }
+  $("btnMenu").addEventListener("click", (e) => { e.stopPropagation(); setMenu($("menuList").classList.contains("hidden")); });
+  $("menuList").addEventListener("click", () => setMenu(false));
+  document.addEventListener("click", (e) => { if (!e.target.closest("#menuWrap")) setMenu(false); });
+
+  $("rowNew").addEventListener("click", (e) => {
+    const c = e.target.closest(".card");
+    const l = c && homeItems.find((x) => x.id === c.dataset.id);
+    if (l) openDetail(l);
+  });
+  document.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-seller]");
+    if (s) return openSeller(s.dataset.seller);
+    const c = e.target.closest("[data-cat]");
+    if (c) { $("fCategory").value = c.dataset.cat; loadListings(); $("browse").scrollIntoView({ behavior: "smooth" }); }
+  });
+  $("sellersAll").addEventListener("click", () => $("sellersDialog").showModal());
+  $("heroSell").addEventListener("click", () => $("btnPost").click());
+
   // ---------- start ----------
   async function init() {
     trackVisit();
@@ -785,6 +905,7 @@
     renderAuthUI();
     syncTabs();
     loadListings();
+    loadHome();
 
     db.auth.onAuthStateChange((event, session) => {
       if (event === "INITIAL_SESSION") return;

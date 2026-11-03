@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f9d6b">
+    <link rel="icon" type="image/png" href="icon/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
@@ -15,32 +16,51 @@
 <header class="topbar">
 
   <div class="topleft">
-   
-    <img src="img/app-store.png" alt="" style="width:28px;vertical-align:middle;"> UniCampus<span>Market Place</span></a>
-     <div id="whoami" class="whoami" role="button" tabindex="0" title="Account">
-    </div>
-    <a class="brand" href="index.html">
+    <a class="brand" href="index.html"><img src="img/app-store.png" alt="" style="width:28px;vertical-align:middle;margin-right:6px">Uni<span>Campus</span> Market</a>
+    <div id="whoami" class="whoami" role="button" tabindex="0" title="Account"></div>
   </div>
   <nav>
-    <button id="btnMine" class="btn ghost hidden" type="button">My listings</button>
-    <button id="btnOrders" class="btn ghost hidden" type="button">Orders</button>
-    <button id="btnProfile" class="btn ghost hidden" type="button">Profile</button>
-    <a id="btnAdmin" class="btn ghost hidden" href="admin.html">Admin</a>
     <button id="btnPost" class="btn primary" type="button">+ Post</button>
+    <div id="menuWrap" class="menu-wrap hidden">
+      <button id="btnMenu" class="btn" type="button" aria-haspopup="true" aria-expanded="false">☰ Menu</button>
+      <div id="menuList" class="menu-list hidden">
+        <button id="btnMine" class="btn ghost hidden" type="button">My listings</button>
+        <button id="btnOrders" class="btn ghost hidden" type="button">Orders</button>
+        <button id="btnProfile" class="btn ghost hidden" type="button">Profile</button>
+        <a id="btnAdmin" class="btn ghost hidden" href="admin.html">Admin</a>
+      </div>
+    </div>
     <button id="btnSignup" class="btn" type="button">Sign up</button>
     <button id="btnAuth" class="btn" type="button">Log in</button>
   </nav>
 </header>
 
 <section class="hero">
-<h1 class="land" style="font-family:'Black Ops One',Impact,sans-serif;">The Land Of Trade</h1>
-  <h3>Buy, sell and swap Gods on campus</h3>
-  <p>Books, electronics, room items and many more, from students you can actually meet.</p>
+  <h1 class="land" style="font-family:'Black Ops One',Impact,sans-serif;">The Land Of Trade</h1>
+  <h3>Buy, sell and swap goods on campus</h3>
+  <p>Books, electronics, room items and more, from students you can actually meet.</p>
+  <div class="hero-btns">
+    <a class="btn primary" href="#browse">Browse items</a>
+    <button id="heroSell" class="btn" type="button">Sell</button>
+  </div>
 </section>
 
 <div id="feeBanner" class="banner"></div>
 
 <main class="wrap">
+  <!-- Home feed: category chips + horizontal rows (hidden while searching/filtering) -->
+  <div id="home">
+    <h2 class="section-title">Browse by category</h2>
+    <div id="catChips" class="chips-row"></div>
+
+    <div class="row-head"><h2 class="section-title">New arrivals</h2></div>
+    <div id="rowNew" class="hrow"></div>
+
+    <div class="row-head"><h2 class="section-title">Top sellers</h2><button id="sellersAll" class="linkbtn" type="button">View all</button></div>
+    <div id="rowSellers" class="hrow"></div>
+  </div>
+
+  <div id="browse"></div>
   <div class="filters">
     <input id="fSearch" type="search" placeholder="Search items..." aria-label="Search items" maxlength="60">
     <select id="fSchool" aria-label="School"></select>
@@ -54,6 +74,7 @@
 
   <div id="kindTabs" class="kind-tabs">
     <button class="btn on" data-kind="sell" type="button">For sale</button>
+    <button class="btn" data-kind="swap" type="button">Swap</button>
     <button class="btn" data-kind="want" type="button">I want (requests)</button>
   </div>
   <h2 id="listTitle" class="section-title">Latest listings</h2>
@@ -98,7 +119,7 @@
       <button type="button" class="x" data-close aria-label="Close">&times;</button>
     </div>
     <label>What are you posting?
-      <select id="pKind"><option value="sell">I am selling an item</option><option value="want">I want an item (request)</option></select>
+      <select id="pKind"><option value="sell">I am selling an item</option><option value="swap">I want to swap an item</option><option value="want">I want an item (request)</option></select>
     </label>
     <label>Title
       <input id="pTitle" type="text" required minlength="3" maxlength="100" placeholder="e.g. Calculus textbook, 3rd edition">
@@ -130,6 +151,29 @@
 <!-- Listing details -->
 <dialog id="detailDialog">
   <div id="detailBody" class="detail"></div>
+</dialog>
+
+<!-- All sellers -->
+<dialog id="sellersDialog" class="wide">
+  <div class="form">
+    <div class="dlg-head">
+      <h3>All sellers</h3>
+      <button type="button" class="x" data-close aria-label="Close">&times;</button>
+    </div>
+    <div id="sellersGrid" class="sellers-grid"></div>
+  </div>
+</dialog>
+
+<!-- Seller profile -->
+<dialog id="sellerDialog" class="wide">
+  <div class="form">
+    <div class="dlg-head">
+      <h3>Seller profile</h3>
+      <button type="button" class="x" data-close aria-label="Close">&times;</button>
+    </div>
+    <div id="sellerHead" class="seller-head"></div>
+    <div id="sellerItems" class="grid"></div>
+  </div>
 </dialog>
 
 <!-- My profile -->

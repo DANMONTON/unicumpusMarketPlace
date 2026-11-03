@@ -46,6 +46,15 @@
         </select>
         <button id="exportUsers" class="btn" type="button">Download users (CSV)</button>
       </div>
+      <form id="verifyForm" class="panel">
+        <h3 style="margin:0">Seller verification</h3>
+        <p class="muted" style="margin:0">Check the seller's student ID or phone yourself, then enter their account email to give (or remove) the Verified badge.</p>
+        <input id="verifyEmail" type="email" placeholder="seller@email.com" required>
+        <div class="btns">
+          <button class="btn primary" type="submit" data-v="1">Verify seller</button>
+          <button class="btn danger" type="submit" data-v="0">Remove badge</button>
+        </div>
+      </form>
       <div id="uStats" class="stats"></div>
       <div class="panel"><h3 style="margin:0">Visits</h3><div id="chartVisits"></div></div>
       <div class="panel"><h3 style="margin:0">New accounts</h3><div id="chartSignups"></div></div>

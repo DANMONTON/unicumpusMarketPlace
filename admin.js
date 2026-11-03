@@ -275,6 +275,16 @@
     download("campus-market-users.csv", [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\n"), "text/csv");
   });
 
+  // ---------- seller verification ----------
+  $("verifyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const value = e.submitter?.dataset.v === "1";
+    const { error } = await db.rpc("admin_set_verified", { p_email: $("verifyEmail").value.trim(), p_value: value });
+    if (error) return toast(error.message.includes("function") ? "Run schema_v7.sql first" : error.message);
+    toast(value ? "Seller verified" : "Badge removed");
+    $("verifyEmail").value = "";
+  });
+
   // ---------- reports ----------
   async function loadReports() {
     const { data, error } = await db.from("reports").select("*").order("created_at", { ascending: false }).limit(100);

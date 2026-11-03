@@ -179,3 +179,33 @@ dialog::backdrop { background: rgba(15, 23, 42, .55); }
 .tablewrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: .88rem; }
 .tbl th, .tbl td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+
+/* ---- v7: home feed ---- */
+.hero-btns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.hero-btns .btn { padding: 10px 22px; }
+.row-head { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+.chips-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; }
+.chipbtn { flex: none; font: inherit; font-weight: 600; cursor: pointer; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+.chipbtn:hover { border-color: var(--accent); }
+.hrow { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.hrow .card { flex: none; width: 170px; scroll-snap-align: start; }
+@media (min-width: 640px) { .hrow .card { width: 210px; } }
+.scard { flex: none; width: 160px; display: grid; justify-items: center; gap: 4px; text-align: center; padding: 14px 10px; font: inherit; color: inherit; cursor: pointer; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); scroll-snap-align: start; }
+.scard:hover { box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.scard b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.scard .muted { font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+dialog.wide { width: min(96vw, 760px); }
+.sellers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.sellers-grid .scard { width: auto; }
+html { scroll-behavior: smooth; }
+
+/* ---- v8: account menu, swap badge, verified badge, seller profile ---- */
+.menu-wrap { position: relative; }
+.menu-list { position: absolute; right: 0; top: calc(100% + 6px); min-width: 170px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.15); padding: 6px; display: grid; gap: 2px; z-index: 20; }
+.menu-list .btn { border: 0; border-radius: 8px; text-align: left; padding: 10px 12px; width: 100%; }
+.menu-list .btn:hover { background: #f3f4f6; }
+.badge.swap { background: #7c3aed; }
+.vbadge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-size: .68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; vertical-align: middle; }
+.seller-head { display: flex; gap: 14px; align-items: center; }
+.seller-head .av.big { flex: none; }
+#sellerItems { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
